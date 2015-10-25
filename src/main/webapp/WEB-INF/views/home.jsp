@@ -10,7 +10,7 @@
 }
 .treetable td, th {
 	padding:3px;
-	border:2px solid #D3D3D3;
+	border:1px solid #D3D3D3;
 	
 }
 .treetable label a{
@@ -23,15 +23,15 @@
 	display:none;
 }
 .treetable thead tr {
-   background:#FFFFFA;
+   background:#EFEFEA;
 	display:table-row;
 }
 .treetable .lev1 {
-	background:#D3D3D3;	
+	background:#FFFFFA;	
 	display:table-row;
 }
 .lev2 {
-	background:#FFFFFA;
+	background:#EFEFEA;
 	
 }
 .lev3 {
