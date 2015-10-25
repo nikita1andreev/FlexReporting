@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 
@@ -34,9 +35,10 @@ public class ReportGenerator //extends AbstractReport
 
 	List<HashMap> getData()  {
 		List <HashMap> a = new ArrayList(); 
-		a.add(newHashMap("a,b,c,d,f,url","a1","b1","c1",10l,"first","url1"));
-		a.add(newHashMap("a,b,c,d,f,url","a1","b2","c1",-20l,"second","url2"));
-		a.add(newHashMap("a,b,c,d,f,url","a1","b2","c2",30l,"fhird","url3"));		
+		a.add(newHashMap("a,b,bb,c,d,f,url","a1","b1","bb","c1",10l,"first","url1"));
+		a.add(newHashMap("a,b,bb,c,d,f,url","a1","b2","bb","c1",-20l,"second","url2"));
+		a.add(newHashMap("a,b,bb,c,d,f,url","a1","b2","bb1","c1",-20l,"second","url2"));
+		a.add(newHashMap("a,b,bb,c,d,f,url","a1","b2","bb","c2",30l,"fhird","url3"));		
 		return a;
 	}
 	
@@ -108,7 +110,7 @@ public class ReportGenerator //extends AbstractReport
 			}
 	}
 
-	private void add_val(HashSet val, Object cur_val) {
+	private void add_val(Collection val, Object cur_val) {
 		boolean found = false;
 		for (Object e : val) { //Идем по элементам коллекции в которую надо добавить значение
 			if (e == null) { // уже есть пустое
@@ -138,20 +140,33 @@ public class ReportGenerator //extends AbstractReport
 			ArrayList<HashMap> t, ArrayList groupsFeildsList, int level) {
 		if (groupsFeildsList.size() == 0)
 			return;
-		HashSet val = new HashSet();
+		List val = new ArrayList();//HashSet();
 		for (HashMap ht : t) {// По всем запросам
-			if (check(ht, node)) { //Если прошла проверка на фильтр узла
-				Object cur_val = ht.get(groupsFeildsList.get(level));
-				if (cur_val == null) //Пустое значение добавляем сразу
-					add_val(val, cur_val);
-				else if (Iterable.class.isAssignableFrom(cur_val.getClass())) {
-					val.add(null); //Если это коллекция добавляем и пустое
-					for (Object it_val : (Iterable) cur_val)
-						add_val(val, it_val); //И каждое из коллекции
-				} else {
-					add_val(val, cur_val);
-				}
-			};			
+			if (check(ht, node)) { // Если прошла проверка на фильтр узла
+
+				StringTokenizer st = new StringTokenizer((String) groupsFeildsList.get(level), ",");
+				Map val1 = new LinkedHashMap();
+				while (st.hasMoreElements()) {
+					HashSet val0 = new HashSet();
+					// ((List)cur_val).add(ht.get(st.nextElement()));
+					Object cur_field = st.nextElement();
+					Object cur_val = ht.get(cur_field);// groupsFeildsList.get(level));
+					if (cur_val == null) // Пустое значение добавляем сразу
+						add_val(val0, cur_val);
+					else if (Iterable.class.isAssignableFrom(cur_val.getClass())) {
+						val.add(null); // Если это коллекция добавляем и пустое
+						for (Object it_val : (Iterable) cur_val)
+							add_val(val0, it_val); // И каждое из коллекции
+					} else {
+						add_val(val0, cur_val);
+					}
+					val1.put(cur_field, val0);
+					//add_val(val1,val0);
+					
+				};
+				add_val(val,val1);
+				
+			};
 		}
 		ArrayList sortedList = new ArrayList(val);
 		if (groupsFeildsList.get(level) == null)
@@ -179,11 +194,19 @@ public class ReportGenerator //extends AbstractReport
 	}
 
 	
+	@SuppressWarnings("unchecked")
 	public static String getStringName(Object o) {
 		if (o == null)
 			return "---";
 		if (o.getClass() == String.class)
 			return (String) o;
+		if (Map.class.isAssignableFrom(o.getClass())) {
+			String str = "";
+			for(Object key:((Map<Object,Object>)o).keySet()){
+				str = str +(str.equals("")?"":",")+getStringName(((Map<Object,Object>)o).get(key));
+			}
+			return str;
+		}
 		if (Iterable.class.isAssignableFrom(o.getClass())) {
 			String str = "";
 			for (Object e : (Iterable) o) {
@@ -199,8 +222,10 @@ public class ReportGenerator //extends AbstractReport
 	public boolean check(HashMap ht, Node x) {
 		boolean right = true; //по умолчанию проверка пройдена		
 		for (Object fe : x.fields.keySet()) { // по всем полям фильтра
-			Object val = ht.get(fe);	//то что в строке
-			Object val1 = x.fields.get(fe); //то что в фильтре
+			for (Object key:((HashMap)x.fields.get(fe)).keySet()) {
+			//for (int i =0;i<((HashMap)ht.get(fe)).size();i++){
+			Object val = ht.get(key);//ht.get(fe);	//то что в строке
+			Object val1 = ((HashMap)x.fields.get(fe)).get(key);; //то что в фильтре
 			if (val == null && val1 == null) //если оба пустые идем к следующему полю фильтра
 				continue;
 			if (val == null && val1 != null) { // фильтр не пустой а поле пустое
@@ -225,6 +250,7 @@ public class ReportGenerator //extends AbstractReport
 				right = false;
 				break;
 			}
+		}
 		}
 		return right;
 	}
@@ -318,13 +344,13 @@ public class ReportGenerator //extends AbstractReport
 
 		Set<Object> allFields = new HashSet();
 		ArrayList<Object> groupsFeildsList = new ArrayList<Object>();
-		ArrayList<Object> detailsFeildsList = new ArrayList<Object>();
+		ArrayList<Object> columnFeildsList = new ArrayList<Object>();
 		ArrayList<HashMap> computeFeildsList = new ArrayList<HashMap>();
 
 		groupsFeildsList.add("a");
-		groupsFeildsList.add("b");
+		groupsFeildsList.add("b,bb");
 		groupsFeildsList.add("url");
-		detailsFeildsList.add("c");
+		columnFeildsList .add("c");
 		computeFeildsList.add(newHashMap("field,function","d","max"));
 
 		ArrayList<HashMap> t;
@@ -340,7 +366,7 @@ public class ReportGenerator //extends AbstractReport
 		Node hor = new Node();
 
 		generate(vert, t, groupsFeildsList, 0);
-		generate(hor, t, detailsFeildsList, 0);
+		generate(hor, t, columnFeildsList , 0);
 
 		String html = "<br><button onclick=\"SwapAll(false);\">Roll up</button></a><button onclick=\"SwapAll(true);\">Unroll</button></a>"
 				+ "<table class=\"treetable\" style=\"width: 100%; border: 0; background-color: lightgrey\">";// id=\"report\"
@@ -376,7 +402,7 @@ public class ReportGenerator //extends AbstractReport
 					String URL = BASEURL
 							+ "/browse/";
 					String ADD = "";
-					URL = (String) x.fields.get("url");//"";
+					URL = (String) getStringName(((HashMap)x.fields.get("url")).get("url"));//"";
 
 					html = html + "<tr class=\"lev" + x.getlevel() + "\" " + styleText + ">";
 					html = html + "<td align=\"left\">" + StringUtils.repeat(spaceInsert, x.getlevel()-1) + "<a href=" + URL + " target=\"_blank\">"  
